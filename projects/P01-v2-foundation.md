@@ -28,7 +28,7 @@ compatible with v1's persisted formats before any command is ported.
 - [x] [P01-T04] Decide the v1/v2 binary name collision — ADR D9 (Q7.A, 2026-09-25).
 - [ ] [P01-T05] Capture v1 golden fixtures for manifest@1, lock@1, plan@1, ledger@2, journal@1.
 - [x] [P01-T07] Decide the initial v2 command subset — ADR D10 (Q8.A, 2026-09-25): read-only `agents`, `list`, `verify --check lint`.
-- [x] [P01-T09] Name the verification levels — ADR D11 (Q9.A, 2026-09-25): `--check lint` / `--check load`.
+- [x] [P01-T09] Name the verification levels — ADR D11 (Q9.A, 2026-09-25): `--check lint` / `--check load`; extended by Q10.A to `lint` / `validate` / `load`, all selected checks always run.
 - [ ] [P01-T08] Define v2 output schemas with v2-only identifiers (D8).
 - [ ] [P01-T06] Scaffold the Cargo workspace (model, formats, adapter, agents, plan, cli).
 - [ ] [P01-TS01] `skillsmith-formats` round-trips every v1 golden fixture byte-for-byte.

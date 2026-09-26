@@ -178,12 +178,20 @@ no shared state before milestone 3.
 
 ### D11 — Verification levels are named for what they do
 
-`verify` takes one flag, `--check <level>`, instead of v1's `--static` / `--deep`:
+`verify` takes one flag, `--check <level>`, instead of v1's `--static` / `--deep`. Each level
+includes the levels before it:
 
-| Level | What happens | Capability |
+| Level | What runs | Capability |
 |---|---|---|
-| `lint` (default) | Skillsmith reads the skill's files and checks manifest and frontmatter rules; no agent runs | `verify.lint` |
-| `load` | Also launches each agent's own binary against an isolated throwaway copy to confirm it loads the skill; no model call | `verify.load` |
+| `lint` (default) | Skillsmith's own checks of `SKILL.md` against the skills spec; no agent runs | `verify.lint` |
+| `validate` | `lint`, plus each agent's own validator (v1's static check, e.g. `claude plugin validate`, `muse skills validate`) | `verify.validate` |
+| `load` | `validate`, plus each agent's binary loading the skill from an isolated throwaway copy; no model call (v1's deep check) | `verify.load` |
+
+**No short-circuit (user instruction, 2026-09-25).** Every check in the selected levels runs
+even when an earlier one fails, so one run reports all findings. The verdict combines them.
+
+Correction: an earlier draft said v1's static check runs no agent. It runs each agent's own
+validator; v1 has no agent-independent check, which `lint` adds.
 
 A later level that exercises the skill through a model (for example `invoke`) can be added as a
 new value without a new flag.
@@ -216,6 +224,7 @@ codecs), `skillsmith-adapter` (trait, manifest loader, JSON-RPC client), `skills
 | Q7 | Command names? | Q7.A — `sks` during the overlap, both names at cutover (D9) | 2026-09-25 |
 | Q8 | Initial command subset? | Q8.A — read-only `agents`, `list`, static `verify` (D10) | 2026-09-25 |
 | Q9 | Verification level names? | Q9.A — `--check lint` / `--check load` (D11) | 2026-09-25 |
+| Q10 | What does `lint` do? | Q10.A — three levels `lint`/`validate`/`load`, no short-circuit (D11) | 2026-09-25 |
 | — | Milestone order (user instruction) | load verification before `install` / `uninstall` (D10) | 2026-09-25 |
 | — | Output compatibility (user instruction) | v2 output is new and not compatible with v1 (D8) | 2026-09-25 |
 
