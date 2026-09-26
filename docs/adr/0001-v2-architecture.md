@@ -67,12 +67,36 @@ an agent.
 - **Tier 1, data manifest:** `agent.toml` declaring locations, detection, and the D1 support
   table. Executes no code.
 - **Tier 2, external executable:** `skillsmith-agent-<name>` on `PATH`, speaking JSON-RPC over
-  stdio with an `initialize` capability handshake (LSP/MCP pattern).
+  stdio with an `initialize` capability handshake (LSP 3.17 pattern; MCP removed its handshake
+  in its 2026-07-28 spec). A static `agent.toml` beside the program lets listing need no process.
 
 Built-in agents are themselves expressed as a Tier 1 manifest plus Rust code for what data
 cannot express. Tier 2's protocol is language-neutral, so TypeScript v1 could load the same
-third-party adapters. WASM plugins (Extism / component model) are a possible later tier for
-sandboxing; not adopted now because the 2026 toolchain is still stabilising.
+third-party adapters. WASM plugins (Extism / component model) are a possible later tier; they
+are deferred because they would sandbox adapter code, while the actual risk is the agent binary
+the adapter launches (WASI 0.3.0 shipped 2026-06-11, so toolchain maturity is no longer the
+reason).
+
+**Adapter structure (research-backed, 2026-09-26; leaf `capability-adapter-patterns`).**
+- `AgentAdapter` is a sealed base role with per-capability accessors returning
+  `Option<&dyn Capability>`. The answers are static per adapter; the D6 conformance suite fails
+  an adapter whose accessors disagree with its D1 declarations. Three tier wrappers implement
+  it (`BuiltIn<H>`, `Manifest`, `External`); built-in agents implement an unsealed
+  `BuiltinHooks`. Traits are synchronous.
+- **Plan / execute / analyze** for every capability that runs an agent binary: the adapter
+  returns an `ExecPlan` (program, args, environment allowlist, timeout) as data; the core runs it
+  in a sandbox it owns (throwaway skill copy, temporary `HOME`); the adapter turns the output
+  into findings. Adapters never hold a process handle. Tier 2 exposes the same split on the wire
+  (`verify.load/plan`, `verify.load/analyze`).
+- **Credential boundary:** only allowlisted environment variables reach the agent, and `HOME` is
+  always temporary. Declared `exec` permissions (program names) are for display and drift
+  checks; the core refuses a plan whose program is undeclared.
+- **Escape paths:** every wire object and `ExecPlan` carries an `extensions` map with
+  reverse-DNS keys (MCP `_meta` syntax, e.g. `com.example/timeout-hint`; `dev.skillsmith/` is
+  reserved). Custom capabilities use the same syntax (`com.example/verify.secrets`) and are
+  invoked only by explicit commands. Core ids stay bare.
+- **Open:** `ExecPlan` as sketched covers one command run. v1's Codex load check is a JSON-RPC
+  exchange over stdin and Muse's runs two commands (P01-T10).
 
 **Tier 2 trust rule.** Finding `skillsmith-agent-<name>` on `PATH` is not enough to run it; the
 `initialize` handshake checks protocol compatibility, not provenance. A Tier 2 adapter runs only
@@ -114,11 +138,19 @@ data goes in new, separate files. Consequence: no shared format changes until v1
 v1 golden fixtures become v2 compatibility tests.
 
 **Write coordination.** Byte compatibility alone allows lost updates if v1 and v2 write at the
-same time. v2 therefore takes the same operation lock v1 takes, with the same on-disk identity:
-v1 locks the ledger by atomically creating the directory `placements.json.lock` next to
-`placements.json`, via the `proper-lockfile` npm package (`packages/core/src/place/ledger.ts:420`).
-v2 implements that convention exactly, including v1's staleness settings (to be read in
-P01-T05). Evidence that the identity matters: v1 once locked a sidecar target, creating
+same time. v2 therefore takes the same locks v1 takes, with the same on-disk identities. v1 uses
+`proper-lockfile@4.1.2` (mkdir-based) with three lock families, all with `realpath: false`:
+
+| Lock | Lock directory | `stale` ms | `update` ms |
+|---|---|---|---|
+| Ledger | `<data>/placements.json.lock` | 30000 | 5000 |
+| Artifact central | `~/.skillsmith/coordination/artifacts-v1/global.lock` (mode 0700) | 2000 | 1000 |
+| Artifact per target | `<target>.lock`, taken in sorted order, plus a member-marker JSON | 30000 | 5000 |
+
+v2 implements the convention in-house (acquire by `mkdir`; stale when mtime is older than
+`stale`; the holder refreshes mtime every `update` ms; release by `rmdir`). Effective values
+follow the 4.1.2 source, `stale = max(stale, 2000)`, not the README's 5000 ms minimum. A compiled
+Rust sketch and `proper-lockfile` 4.1.2 excluded each other in a local run (2026-09-25). Evidence that the identity matters: v1 once locked a sidecar target, creating
 `placements.json.lock.lock`, and old and new binaries then ran without excluding each other
 (the "split-brain" described at `ledger.ts:424`). A concurrency test runs v1 and v2 against one
 data directory and proves mutual exclusion.
@@ -140,6 +172,23 @@ In scope now: (1) support coverage — `agents matrix` generated from D1 data an
 (2) agent drift — re-verify declared facts locally or in CI against new agent releases;
 (3) installation health — `doctor`, aware of shared locations and collision policies.
 Deferred: (4) runtime metrics; the core exposes an event interface so they can be added later.
+
+### D12 — Core library returns data; the CLI renders
+
+(Research-backed, 2026-09-26; leaf `rust-core-cli-result-model`.)
+- Crates: the core library has no `clap`, no printing, no `process::exit`; enforced by the
+  dependency graph, clippy lints (`print_stdout`, `print_stderr`, `exit`), and
+  `disallowed-methods` for `std::io::stdout` / `stderr` (the lints alone miss
+  `writeln!(std::io::stdout())`).
+- Every use case returns `Result<Outcome<T>, Fatal>`. `Fatal` (thiserror) means it could not run.
+  `Outcome` carries the value and diagnostics; each check yields a `CheckResult` with status
+  `Ran`, `Skipped`, or `CouldNotRun`, so no check stops another (D11).
+- `Diagnostic` is a serde type with a stable namespaced code (`spec/...`, `agent/<id>/...`),
+  severity, message, subject, origin (core or adapter), and optional structured data.
+- Progress goes through a typed event `Sink` passed into the core; this is the D7 event
+  interface. `tracing` is used for logs only. anyhow is used only in the CLI.
+- `--json` documents carry a v2 schema id and evolve additively (unlike persisted state, D5).
+  Exit codes: 0 ran, 1 problems found, 2 could not run.
 
 ### D8 — v2 command output is new and not backward compatible
 
@@ -232,6 +281,9 @@ codecs), `skillsmith-adapter` (trait, manifest loader, JSON-RPC client), `skills
 | Q8 | Initial command subset? | Q8.A — read-only `agents`, `list`, static `verify` (D10) | 2026-09-25 |
 | Q9 | Verification level names? | Q9.A — `--check lint` / `--check load` (D11) | 2026-09-25 |
 | Q11 | Where does a data-only agent's load-check reader come from? | Superseded: capabilities live in the adapter (D11) | 2026-09-25 |
+| Q14 | Sandbox-only process access? | Superseded by Q15, then by Q16 | 2026-09-25 |
+| Q15 | Sandbox default with declared permissions? | Superseded by Q16 (research changed the role of permissions) | 2026-09-26 |
+| Q16 | Adopt the researched pattern sets? | Q16.A — adopted into D2, D5, D12 | 2026-09-26 |
 | Q13 | Agent-specific lint rules? | Q13.A — shared spec rules plus optional adapter rules (D11) | 2026-09-25 |
 | Q10 | What does `lint` do? | Q10.A — three levels `lint`/`validate`/`load`, no short-circuit (D11) | 2026-09-25 |
 | — | Milestone order (user instruction) | load verification before `install` / `uninstall` (D10) | 2026-09-25 |
