@@ -18,16 +18,17 @@ compatible with v1's persisted formats before any command is ported.
 - New, non-v1-compatible command output (D8); `sks` / `skillsmith` naming (D9).
 
 **Out of Scope**
-- Commands beyond `agents`, `list`, and static `verify` (D10); any write to shared state;
+- Commands beyond `agents`, `list`, and `verify --check lint` (D10); any write to shared state;
   releases; WASM adapters; runtime metrics.
 
 ## Tests & Tasks
 - [~] [P01-T01] Record ADR 0001 with the decision log.
-- [ ] [P01-T02] Analyse the D2 data/code boundary per v1 per-agent behaviour; propose the `agent.toml` schema.
+- [ ] [P01-T02] Analyse the D2 data/code boundary per v1 per-agent behaviour; propose the `agent.toml` schema. Prerequisite for `verify --check load`, the next milestone (D10).
 - [ ] [P01-T03] Specify the Tier 2 JSON-RPC adapter protocol (`initialize`, capability exchange, versioning).
 - [x] [P01-T04] Decide the v1/v2 binary name collision — ADR D9 (Q7.A, 2026-09-25).
 - [ ] [P01-T05] Capture v1 golden fixtures for manifest@1, lock@1, plan@1, ledger@2, journal@1.
-- [x] [P01-T07] Decide the initial v2 command subset — ADR D10 (Q8.A, 2026-09-25): read-only `agents`, `list`, static `verify`.
+- [x] [P01-T07] Decide the initial v2 command subset — ADR D10 (Q8.A, 2026-09-25): read-only `agents`, `list`, `verify --check lint`.
+- [x] [P01-T09] Name the verification levels — ADR D11 (Q9.A, 2026-09-25): `--check lint` / `--check load`.
 - [ ] [P01-T08] Define v2 output schemas with v2-only identifiers (D8).
 - [ ] [P01-T06] Scaffold the Cargo workspace (model, formats, adapter, agents, plan, cli).
 - [ ] [P01-TS01] `skillsmith-formats` round-trips every v1 golden fixture byte-for-byte.

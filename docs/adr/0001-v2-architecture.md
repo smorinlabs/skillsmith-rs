@@ -169,11 +169,24 @@ The first milestone builds three read-only commands:
 |---|---|
 | `agents` | D1 capability states and the D7 coverage matrix; D2 adapter tiers |
 | `list` | D3 location model and D5 reads of v1 state (`placements.json`, agent skill roots) |
-| `verify` (static checks only) | Capability-driven dispatch: the command names no agent |
+| `verify --check lint` | Capability-driven dispatch: the command names no agent |
 
-Deep verification waits for the D2 data/code boundary (P01-T02). `install` and `uninstall` are
-the next milestone, after the v1/v2 lock concurrency test (P01-TS03) passes, so v2 writes no
-shared state in the first milestone.
+Milestone order (user instruction, 2026-09-25): (1) the three commands above; (2) load
+verification, `verify --check load`, which first needs the D2 data/code boundary (P01-T02);
+(3) `install` and `uninstall`, after the v1/v2 lock concurrency test (P01-TS03) passes. v2 writes
+no shared state before milestone 3.
+
+### D11 — Verification levels are named for what they do
+
+`verify` takes one flag, `--check <level>`, instead of v1's `--static` / `--deep`:
+
+| Level | What happens | Capability |
+|---|---|---|
+| `lint` (default) | Skillsmith reads the skill's files and checks manifest and frontmatter rules; no agent runs | `verify.lint` |
+| `load` | Also launches each agent's own binary against an isolated throwaway copy to confirm it loads the skill; no model call | `verify.load` |
+
+A later level that exercises the skill through a model (for example `invoke`) can be added as a
+new value without a new flag.
 
 ### Migration approach
 
@@ -202,6 +215,8 @@ codecs), `skillsmith-adapter` (trait, manifest loader, JSON-RPC client), `skills
 | Q6 | Apply the review findings (Tier 2 trust, write coordination, fixes)? | Q6.A — applied | 2026-09-25 |
 | Q7 | Command names? | Q7.A — `sks` during the overlap, both names at cutover (D9) | 2026-09-25 |
 | Q8 | Initial command subset? | Q8.A — read-only `agents`, `list`, static `verify` (D10) | 2026-09-25 |
+| Q9 | Verification level names? | Q9.A — `--check lint` / `--check load` (D11) | 2026-09-25 |
+| — | Milestone order (user instruction) | load verification before `install` / `uninstall` (D10) | 2026-09-25 |
 | — | Output compatibility (user instruction) | v2 output is new and not compatible with v1 (D8) | 2026-09-25 |
 
 Earlier alignment answers (2026-09-23): capability abstraction via traits plus declarative
