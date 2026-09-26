@@ -161,6 +161,20 @@ other. This does not change D5: persisted state files stay byte-compatible with 
   the user typed.
 - Not yet checked: whether `sks` is free on crates.io, npm, and Homebrew.
 
+### D10 — Initial command subset
+
+The first milestone builds three read-only commands:
+
+| Command | Proves |
+|---|---|
+| `agents` | D1 capability states and the D7 coverage matrix; D2 adapter tiers |
+| `list` | D3 location model and D5 reads of v1 state (`placements.json`, agent skill roots) |
+| `verify` (static checks only) | Capability-driven dispatch: the command names no agent |
+
+Deep verification waits for the D2 data/code boundary (P01-T02). `install` and `uninstall` are
+the next milestone, after the v1/v2 lock concurrency test (P01-TS03) passes, so v2 writes no
+shared state in the first milestone.
+
 ### Migration approach
 
 Spec-first: capture v1 behaviour as golden fixtures, then build a Cargo workspace that passes
@@ -170,7 +184,6 @@ codecs), `skillsmith-adapter` (trait, manifest loader, JSON-RPC client), `skills
 
 ## Open issues
 
-- **Initial command subset.** Which v2 commands are built first is not yet decided.
 - **Unverified facts** (not relied on): Codex `~/.codex/skills/.system`; the OpenCode and Kilo
   Code env vars that disable external skill roots (Kilo's may be
   `OPENCODE_DISABLE_EXTERNAL_SKILLS`); the list of other agents reading `~/.agents/skills`.
@@ -188,6 +201,7 @@ codecs), `skillsmith-adapter` (trait, manifest loader, JSON-RPC client), `skills
 | Q5 | Repo visibility and license? | Q5.A — public, Apache-2.0 | 2026-09-24 |
 | Q6 | Apply the review findings (Tier 2 trust, write coordination, fixes)? | Q6.A — applied | 2026-09-25 |
 | Q7 | Command names? | Q7.A — `sks` during the overlap, both names at cutover (D9) | 2026-09-25 |
+| Q8 | Initial command subset? | Q8.A — read-only `agents`, `list`, static `verify` (D10) | 2026-09-25 |
 | — | Output compatibility (user instruction) | v2 output is new and not compatible with v1 (D8) | 2026-09-25 |
 
 Earlier alignment answers (2026-09-23): capability abstraction via traits plus declarative
