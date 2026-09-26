@@ -36,6 +36,7 @@ compatible with v1's persisted formats before any command is ported.
 - [ ] [P01-T06] Scaffold the Cargo workspace (model, formats, adapter, agents, plan, cli).
 - [ ] [P01-TS01] `skillsmith-formats` round-trips every v1 golden fixture byte-for-byte.
 - [ ] [P01-TS03] Concurrency test: v1 and v2 on one data dir exclude each other via `placements.json.lock` (D5).
+- [ ] [P01-TS04] Paused-holder test: a holder whose lock is reclaimed while paused aborts before renaming (ADR D5, Q21.A).
 - [ ] [P01-TS02] Conformance suite runs against every registered adapter, including one Tier 1 test manifest.
 - [ ] Regression Test Status
 

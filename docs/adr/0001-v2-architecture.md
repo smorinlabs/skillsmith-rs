@@ -168,7 +168,16 @@ different lock directory than v1 for some paths.
 v2 implements the convention in-house (acquire by `mkdir`; stale when mtime is older than
 `stale`; the holder refreshes mtime every `update` ms; release by `rmdir`). Effective values
 follow the 4.1.2 source, `stale = max(stale, 2000)`, not the README's 5000 ms minimum. A compiled
-Rust sketch and `proper-lockfile` 4.1.2 excluded each other in a local run (2026-09-25). Evidence that the identity matters: v1 once locked a sidecar target, creating
+Rust sketch and `proper-lockfile` 4.1.2 excluded each other in a local run (2026-09-25).
+
+**Paused-holder check (Q21.A, 2026-09-26).** A holder paused past `stale` (laptop sleep,
+`SIGSTOP`) can lose its lock to a stale reclaim and resume unaware. Immediately before every
+rename, v2 confirms that the lock directory still exists with the mtime v2 last wrote and that
+the target still matches the preimage it read; if either fails, the operation stops. Known
+limitation: a pause between that final check and the rename is not covered; closing it needs a
+compare-and-swap rename or a fencing token that v1 also honours. v1 is inferred to have the same
+exposure (its `onCompromised` handler is a timer callback and does not stop an in-flight write).
+After v1 retires, v2 moves to OS locks with a fencing token. Evidence that the identity matters: v1 once locked a sidecar target, creating
 `placements.json.lock.lock`, and old and new binaries then ran without excluding each other
 (the "split-brain" described at `ledger.ts:424`). A concurrency test runs v1 and v2 against one
 data directory and proves mutual exclusion.
@@ -311,6 +320,7 @@ codecs), `skillsmith-adapter` (trait, manifest loader, JSON-RPC client), `skills
 | Q17 | Startup announcement text? | Q17.A — revised text with `sks` and the research index | 2026-09-26 |
 | Q19 | Exit code when problems and incomplete checks mix? | Q19.A — 1 > 2 > 0; a check that could not run is not `Fatal` (D12) | 2026-09-26 |
 | Q20 | How far does the sandbox constrain an agent program? | Q20.A — environment isolation, typed path-checked arguments; Tier 2 adapter process trusted, not sandboxed (D2) | 2026-09-26 |
+| Q21 | Protection against a writer that lost its lock while paused? | Q21.A — check lock and preimage before every rename; residual gap recorded (D5) | 2026-09-26 |
 | Q16 | Adopt the researched pattern sets? | Q16.A — adopted into D2, D5, D12 | 2026-09-26 |
 | Q13 | Agent-specific lint rules? | Q13.A — shared spec rules plus optional adapter rules (D11) | 2026-09-25 |
 | Q10 | What does `lint` do? | Q10.A — three levels `lint`/`validate`/`load`, no short-circuit (D11) | 2026-09-25 |
