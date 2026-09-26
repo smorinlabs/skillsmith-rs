@@ -193,6 +193,13 @@ even when an earlier one fails, so one run reports all findings. The verdict com
 Correction: an earlier draft said v1's static check runs no agent. It runs each agent's own
 validator; v1 has no agent-independent check, which `lint` adds.
 
+**Capabilities live in the adapter (2026-09-25).** `verify.lint` is defined once in the core
+from the skills spec; an adapter may add agent-specific lint rules (for example frontmatter keys
+only that agent accepts; v1 reserved `agents/<tool>/frontmatter.ts` for this but never filled it).
+`verify.validate` and `verify.load` are implemented entirely by each adapter, which runs the
+agent and interprets its output. Lint findings record whether a spec rule or an agent rule
+produced them. The core/adapter interface boundary is still being designed.
+
 A later level that exercises the skill through a model (for example `invoke`) can be added as a
 new value without a new flag.
 
@@ -224,6 +231,8 @@ codecs), `skillsmith-adapter` (trait, manifest loader, JSON-RPC client), `skills
 | Q7 | Command names? | Q7.A — `sks` during the overlap, both names at cutover (D9) | 2026-09-25 |
 | Q8 | Initial command subset? | Q8.A — read-only `agents`, `list`, static `verify` (D10) | 2026-09-25 |
 | Q9 | Verification level names? | Q9.A — `--check lint` / `--check load` (D11) | 2026-09-25 |
+| Q11 | Where does a data-only agent's load-check reader come from? | Superseded: capabilities live in the adapter (D11) | 2026-09-25 |
+| Q13 | Agent-specific lint rules? | Q13.A — shared spec rules plus optional adapter rules (D11) | 2026-09-25 |
 | Q10 | What does `lint` do? | Q10.A — three levels `lint`/`validate`/`load`, no short-circuit (D11) | 2026-09-25 |
 | — | Milestone order (user instruction) | load verification before `install` / `uninstall` (D10) | 2026-09-25 |
 | — | Output compatibility (user instruction) | v2 output is new and not compatible with v1 (D8) | 2026-09-25 |
