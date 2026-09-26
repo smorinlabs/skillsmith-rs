@@ -331,6 +331,7 @@ codecs), `skillsmith-adapter` (trait, manifest loader, JSON-RPC client), `skills
 | Q20 | How far does the sandbox constrain an agent program? | Q20.A — environment isolation, typed path-checked arguments; Tier 2 adapter process trusted, not sandboxed (D2) | 2026-09-26 |
 | Q21 | Protection against a writer that lost its lock while paused? | Q21.A — check lock and preimage before every rename; residual gap recorded (D5) | 2026-09-26 |
 | Q22 | What must be approved before a Tier 1 manifest's program runs? | Q22.A — the manifest (path + SHA-256), on first use and on change (D2) | 2026-09-26 |
+| Q23 | Where does v2 tracking live after the design merge? | Q23.A — only in this repo; v1 P21 stays as merged, no further v1 changes (P01-T13) | 2026-09-26 |
 | Q16 | Adopt the researched pattern sets? | Q16.A — adopted into D2, D5, D12 | 2026-09-26 |
 | Q13 | Agent-specific lint rules? | Q13.A — shared spec rules plus optional adapter rules (D11) | 2026-09-25 |
 | Q10 | What does `lint` do? | Q10.A — three levels `lint`/`validate`/`load`, no short-circuit (D11) | 2026-09-25 |
