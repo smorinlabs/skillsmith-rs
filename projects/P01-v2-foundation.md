@@ -46,4 +46,5 @@ the adapter manifest and protocol.
 - `cargo test --workspace` passes, including v1 fixture round-trips.
 
 ## Manual Verification
-- Run v1 `skillsmith list --json` before and after a v2 read/write pass on the same data dir; output is identical.
+- Run v1 `skillsmith list --json` before and after a v2 read-only pass (`sks list`) on the same data dir; output is identical.
+- P01 format round-trips run on isolated fixture copies, never on a live data dir; shared-state writes wait for milestone 3 (ADR D10).
