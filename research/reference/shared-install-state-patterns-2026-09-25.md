@@ -187,3 +187,15 @@ on crash.
 unknown-field preservation (two writers diverge silently); RFC 8785 JCS (breaks v1 byte
 compatibility); dual execution of writes (unsafe per Scientist); `force-unlock` without a holder
 nonce (Terraform warns it creates multiple writers).
+
+## Errata (2026-09-26, from PR review)
+
+- **Lock path derivation.** The sketch's `lock_dir` must match Node's `path.resolve` exactly:
+  absolutize, then resolve `.` and `..` lexically, without following symlinks. On POSIX
+  `std::path::absolute` keeps `..`, so the sketch as written can pick a different lock directory
+  than v1 for paths containing `..` (verified: proper-lockfile 4.1.2 `lib/lockfile.js:17` calls
+  `path.resolve` when `realpath` is false). Adopted in ADR 0001 D5.
+- **Fencing.** The compromise check (mtime comparison on refresh) does not stop a holder that
+  pauses after its last check, loses the lock to a stale reclaim, then resumes and renames over
+  newer state. This is an open decision in ADR 0001; the recommendation above is incomplete
+  until it is resolved.

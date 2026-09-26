@@ -74,7 +74,7 @@ warnings and errors as part of the interface; v1 and v2 share state safely (D5).
 
 ## Findings that change ADR 0001
 
-- D5 names one lock; v1 has three lock families. The `proper-lockfile` README states a 5000 ms
+- (Resolved in ADR 0001 D5 on 2026-09-26.) D5 originally named one lock; v1 has three lock families. The `proper-lockfile` README states a 5000 ms
   minimum `stale`, but the 4.1.2 source clamps at 2000 ms.
 - D2 cites "the LSP/MCP `initialize` pattern"; MCP's 2026-07-28 spec removed the handshake (LSP
   3.17 keeps it). D2's WASM rationale ("toolchain still stabilising") is dated: WASI 0.3.0

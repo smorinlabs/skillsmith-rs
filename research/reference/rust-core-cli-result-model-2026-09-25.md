@@ -234,3 +234,13 @@ unnecessary.
 | anyhow in the core | Not matchable or serializable by embedders |
 | `Result<T, Vec<Diagnostic>>` | Loses the value when problems exist |
 | Rendering in the core (cargo's `Shell` via `GlobalContext`) | Acceptable for an internal library, but blocks embedding |
+
+## Errata (2026-09-26, from PR review)
+
+- `Severity`, `Origin`, and `CheckStatus` in the sketch should be `#[non_exhaustive]`, matching
+  the stated public-API evolution policy.
+- The additive-JSON promise needs tolerant deserialization for enums that cross the Tier 2 wire:
+  add an `Unknown` variant with `#[serde(other)]` (or custom deserialization) so a newer adapter's
+  new value does not fail parsing. Adopted in ADR 0001 D12.
+- Exit-code precedence for a run mixing problem findings and `CouldNotRun` checks is not defined
+  here; it is an open decision in ADR 0001.

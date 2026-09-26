@@ -130,8 +130,11 @@ placement (reachability, as in Nix GC roots, not counters). This resolves v1 iss
 
 ### D5 — v1 and v2 share state; v2 matches v1 formats exactly
 
-v2 reads and writes v1's data directory, resolved in v1's order: `$SKILLSMITH_HOME` when set,
-otherwise `$XDG_DATA_HOME/skillsmith` (`packages/core/src/place/paths.ts:4`). v2 reads and writes
+v2 reads and writes v1's data directory, resolved exactly as v1 does
+(`packages/core/src/place/paths.ts:4`, `config/runtime.ts:47`, `ports/default.ts:87`):
+`$SKILLSMITH_HOME` when set and non-empty (empty counts as unset); otherwise
+`$XDG_DATA_HOME/skillsmith`, where an unset `XDG_DATA_HOME` defaults to `$HOME/.local/share` and
+an empty one is kept, yielding the relative path `skillsmith`. v2 reads and writes
 persisted artifacts byte-compatibly: manifest@1, lock@1, plan@1, ledger@2, journal@1. v2 also
 reads ledger@1 so it can migrate older ledgers, matching v1. v2-only
 data goes in new, separate files. Consequence: no shared format changes until v1 is retired.
@@ -146,6 +149,12 @@ same time. v2 therefore takes the same locks v1 takes, with the same on-disk ide
 | Ledger | `<data>/placements.json.lock` | 30000 | 5000 |
 | Artifact central | `~/.skillsmith/coordination/artifacts-v1/global.lock` (mode 0700) | 2000 | 1000 |
 | Artifact per target | `<target>.lock`, taken in sorted order, plus a member-marker JSON | 30000 | 5000 |
+
+Lock directory names derive from the target path the way `proper-lockfile` does with
+`realpath: false`: Node's `path.resolve`, which makes the path absolute and resolves `.` and `..`
+lexically without following symlinks. v2 must apply the same lexical normalization;
+`std::path::absolute` keeps `..` and `canonicalize` follows symlinks, and either would give a
+different lock directory than v1 for some paths.
 
 v2 implements the convention in-house (acquire by `mkdir`; stale when mtime is older than
 `stale`; the holder refreshes mtime every `update` ms; release by `rmdir`). Effective values
@@ -183,6 +192,10 @@ Deferred: (4) runtime metrics; the core exposes an event interface so they can b
 - Every use case returns `Result<Outcome<T>, Fatal>`. `Fatal` (thiserror) means it could not run.
   `Outcome` carries the value and diagnostics; each check yields a `CheckResult` with status
   `Ran`, `Skipped`, or `CouldNotRun`, so no check stops another (D11).
+- Public enums (`Severity`, `Origin`, `CheckStatus`, and later additions) are
+  `#[non_exhaustive]`. Enums that cross the Tier 2 wire deserialize tolerantly: an unknown value
+  maps to an `Unknown` variant (`#[serde(other)]`) instead of failing, so additive evolution
+  holds for adapters too.
 - `Diagnostic` is a serde type with a stable namespaced code (`spec/...`, `agent/<id>/...`),
   severity, message, subject, origin (core or adapter), and optional structured data.
 - Progress goes through a typed event `Sink` passed into the core; this is the D7 event
