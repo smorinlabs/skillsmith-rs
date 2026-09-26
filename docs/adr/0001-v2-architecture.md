@@ -211,9 +211,11 @@ Deferred: (4) runtime metrics; the core exposes an event interface so they can b
   `Outcome` carries the value and diagnostics; each check yields a `CheckResult` with status
   `Ran`, `Skipped`, or `CouldNotRun`, so no check stops another (D11).
 - Public enums (`Severity`, `Origin`, `CheckStatus`, and later additions) are
-  `#[non_exhaustive]`. Enums that cross the Tier 2 wire deserialize tolerantly: an unknown value
-  maps to an `Unknown` variant (`#[serde(other)]`) instead of failing, so additive evolution
-  holds for adapters too.
+  `#[non_exhaustive]`. Enums that cross the Tier 2 wire deserialize tolerantly, so additive
+  evolution holds for adapters too: a data-carrying enum uses serde's internally tagged
+  representation (`#[serde(tag = "kind")]`) with a unit `Unknown` variant marked
+  `#[serde(other)]`; a plain string enum (such as `Severity`) uses a custom deserializer that maps
+  unrecognised strings to `Unknown`. Either way an unknown value never fails parsing.
 - `Diagnostic` is a serde type with a stable namespaced code (`spec/...`, `agent/<id>/...`),
   severity, message, subject, origin (core or adapter), and optional structured data.
 - Progress goes through a typed event `Sink` passed into the core; this is the D7 event
