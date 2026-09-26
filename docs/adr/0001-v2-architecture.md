@@ -88,6 +88,15 @@ reason).
   in a sandbox it owns (throwaway skill copy, temporary `HOME`); the adapter turns the output
   into findings. Adapters never hold a process handle. Tier 2 exposes the same split on the wire
   (`verify.load/plan`, `verify.load/analyze`).
+- **What the sandbox is (Q20.A, 2026-09-26).** It is environment isolation, not filesystem
+  confinement: only allowlisted environment variables reach the agent, `HOME` is always
+  temporary, and the skill is a throwaway copy. The agent program otherwise runs with the user's
+  filesystem access. `ExecPlan` arguments are typed as literal text or as a path inside the
+  sandbox; the core resolves every path argument and rejects one that escapes the sandbox (for
+  example `/etc/...`, `..`, or a symlink out) in plans from Tier 1 and Tier 2 adapters. The
+  declared program path is the only exception. A Tier 2 adapter's own process is trusted through
+  the Tier 2 trust rule (allowlist), not sandboxed. OS-level confinement is future work
+  (P01-T12).
 - **Credential boundary:** only allowlisted environment variables reach the agent, and `HOME` is
   always temporary. Declared `exec` permissions (program names) are for display and drift
   checks; the core refuses a plan whose program is undeclared.
@@ -201,7 +210,10 @@ Deferred: (4) runtime metrics; the core exposes an event interface so they can b
 - Progress goes through a typed event `Sink` passed into the core; this is the D7 event
   interface. `tracing` is used for logs only. anyhow is used only in the CLI.
 - `--json` documents carry a v2 schema id and evolve additively (unlike persisted state, D5).
-  Exit codes: 0 ran, 1 problems found, 2 could not run.
+  Exit codes: 0 ran, 1 problems found, 2 could not run. Precedence (Q19.A, 2026-09-26):
+  1 if any check found a problem; otherwise 2 if any check reported `CouldNotRun` or the use
+  case returned `Fatal`; otherwise 0. A single check that could not run is a `CheckResult`,
+  never a `Fatal`.
 
 ### D8 — v2 command output is new and not backward compatible
 
@@ -297,6 +309,8 @@ codecs), `skillsmith-adapter` (trait, manifest loader, JSON-RPC client), `skills
 | Q14 | Sandbox-only process access? | Superseded by Q15, then by Q16 | 2026-09-25 |
 | Q15 | Sandbox default with declared permissions? | Superseded by Q16 (research changed the role of permissions) | 2026-09-26 |
 | Q17 | Startup announcement text? | Q17.A — revised text with `sks` and the research index | 2026-09-26 |
+| Q19 | Exit code when problems and incomplete checks mix? | Q19.A — 1 > 2 > 0; a check that could not run is not `Fatal` (D12) | 2026-09-26 |
+| Q20 | How far does the sandbox constrain an agent program? | Q20.A — environment isolation, typed path-checked arguments; Tier 2 adapter process trusted, not sandboxed (D2) | 2026-09-26 |
 | Q16 | Adopt the researched pattern sets? | Q16.A — adopted into D2, D5, D12 | 2026-09-26 |
 | Q13 | Agent-specific lint rules? | Q13.A — shared spec rules plus optional adapter rules (D11) | 2026-09-25 |
 | Q10 | What does `lint` do? | Q10.A — three levels `lint`/`validate`/`load`, no short-circuit (D11) | 2026-09-25 |

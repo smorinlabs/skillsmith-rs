@@ -31,6 +31,7 @@ compatible with v1's persisted formats before any command is ported.
 - [x] [P01-T09] Name the verification levels — ADR D11 (Q9.A, 2026-09-25): `--check lint` / `--check load`; extended by Q10.A to `lint` / `validate` / `load`, all selected checks always run.
 - [ ] [P01-T10] Extend `ExecPlan` for stdin exchanges and multi-step runs (Codex JSON-RPC, Muse two runs), or keep those checks in Tier 0/Tier 2 code (ADR D2 open item).
 - [x] [P01-T11] Research architecture patterns — `research/topics/v2-architecture-patterns/DECISION.md`; adopted as ADR D2, D5, D12 (Q16.A, 2026-09-26).
+- [ ] [P01-T12] Research OS-level filesystem confinement for agent programs (Linux Landlock; macOS options) as a later sandbox layer (ADR D2, Q20.A).
 - [ ] [P01-T08] Define v2 output schemas with v2-only identifiers (D8).
 - [ ] [P01-T06] Scaffold the Cargo workspace (model, formats, adapter, agents, plan, cli).
 - [ ] [P01-TS01] `skillsmith-formats` round-trips every v1 golden fixture byte-for-byte.
