@@ -34,7 +34,7 @@ compatible with v1's persisted formats before any command is ported.
 - [ ] [P01-T12] Research OS-level filesystem confinement for agent programs (Linux Landlock; macOS options) as a later sandbox layer (ADR D2, Q20.A).
 - [ ] [P01-T08] Define v2 output schemas with v2-only identifiers (D8).
 - [ ] [P01-T06] Scaffold the Cargo workspace (model, formats, adapter, agents, plan, cli).
-- [ ] [P01-T13] Watch v1 (smorinlabs/skillsmith) for changes to persisted formats (manifest@1, lock@1, plan@1, ledger@1/2, journal@1) or to its three `proper-lockfile` lock families, and record each as a v2 compatibility break here. Moved from v1 P21-T02 on 2026-09-26 (Q23.A: all v2 work lives in this repo; no further v1 changes).
+- [ ] [P01-T13] Watch v1 (smorinlabs/skillsmith) for changes to persisted formats (manifest@1, lock@1, plan@1, ledger@1/2, journal@1) or to its three `proper-lockfile` lock families, and record each as a v2 compatibility break here. This task supersedes v1 P21-T02 and is the only maintained copy: P21-T02 stays open in the v1 repo unchanged, because Q23.A (2026-09-26) keeps all v2 work in this repo and makes no further v1 edits.
 - [ ] [P01-TS01] `skillsmith-formats` round-trips every v1 golden fixture byte-for-byte.
 - [ ] [P01-TS03] Concurrency test: v1 and v2 on one data dir exclude each other via `placements.json.lock` (D5).
 - [ ] [P01-TS04] Paused-holder test: a holder whose lock is reclaimed while paused aborts before renaming (ADR D5, Q21.A).
