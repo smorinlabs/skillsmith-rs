@@ -1,5 +1,5 @@
 {
   "companyAnnouncements": [
-    "Skillsmith v2: a Rust rewrite of the Skillsmith skill manager, running alongside the TypeScript v1 (smorinlabs/skillsmith). See docs/adr/ for the architecture decisions and PROJECTS.md for the plan."
+    "Skillsmith v2: a planned Rust rewrite of the Skillsmith skill manager, designed to run alongside the TypeScript v1 (smorinlabs/skillsmith). See docs/adr/ for the architecture decisions and PROJECTS.md for the plan."
   ]
 }

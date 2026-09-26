@@ -74,6 +74,12 @@ cannot express. Tier 2's protocol is language-neutral, so TypeScript v1 could lo
 third-party adapters. WASM plugins (Extism / component model) are a possible later tier for
 sandboxing; not adopted now because the 2026 toolchain is still stabilising.
 
+**Tier 2 trust rule.** Finding `skillsmith-agent-<name>` on `PATH` is not enough to run it; the
+`initialize` handshake checks protocol compatibility, not provenance. A Tier 2 adapter runs only
+if it is listed in the Skillsmith config allowlist (absolute path plus SHA-256 of the
+executable), or after the user approves it at first use, which records that allowlist entry. A
+changed hash requires approval again. Tier 1 manifests execute no code and need no allowlist.
+
 **Open (P01-T02):** the exact data/code boundary. Candidates from v1: inventory collision
 resolution (likely data), deep verification and Muse enablement probing (likely code).
 
@@ -100,11 +106,22 @@ placement (reachability, as in Nix GC roots, not counters). This resolves v1 iss
 
 ### D5 — v1 and v2 share state; v2 matches v1 formats exactly
 
-v2 reads and writes v1's data directory (`$SKILLSMITH_HOME` or `$XDG_DATA_HOME/skillsmith`) and
+v2 reads and writes v1's data directory, resolved in v1's order: `$SKILLSMITH_HOME` when set,
+otherwise `$XDG_DATA_HOME/skillsmith` (`packages/core/src/place/paths.ts:4`). v2 reads and writes
 persisted artifacts byte-compatibly: manifest@1, lock@1, plan@1, ledger@2, journal@1. v2 also
 reads ledger@1 so it can migrate older ledgers, matching v1. v2-only
 data goes in new, separate files. Consequence: no shared format changes until v1 is retired.
 v1 golden fixtures become v2 compatibility tests.
+
+**Write coordination.** Byte compatibility alone allows lost updates if v1 and v2 write at the
+same time. v2 therefore takes the same operation lock v1 takes, with the same on-disk identity:
+v1 locks the ledger by atomically creating the directory `placements.json.lock` next to
+`placements.json`, via the `proper-lockfile` npm package (`packages/core/src/place/ledger.ts:420`).
+v2 implements that convention exactly, including v1's staleness settings (to be read in
+P01-T05). Evidence that the identity matters: v1 once locked a sidecar target, creating
+`placements.json.lock.lock`, and old and new binaries then ran without excluding each other
+(the "split-brain" described at `ledger.ts:424`). A concurrency test runs v1 and v2 against one
+data directory and proves mutual exclusion.
 
 ### D6 — Adding an agent is cheap by construction
 
@@ -124,17 +141,36 @@ In scope now: (1) support coverage — `agents matrix` generated from D1 data an
 (3) installation health — `doctor`, aware of shared locations and collision policies.
 Deferred: (4) runtime metrics; the core exposes an event interface so they can be added later.
 
+### D8 — v2 command output is new and not backward compatible
+
+v2's command output (`--json` results, human-readable rendering, exit-code tables) uses new
+schemas, separate from v1's CLI wire registry (v1 ADR 0008: `agents@2`, `list@3`, `verify@1`,
+...). v2 does not reproduce v1 output. The two are mutually exclusive by construction: every v2
+JSON document carries a v2-only schema identifier, so a consumer cannot mistake one for the
+other. This does not change D5: persisted state files stay byte-compatible with v1.
+
+### D9 — Command names during and after the overlap
+
+- v2 ships two Cargo binary targets from one library: `sks` and `skillsmith`
+  (`src/bin/sks.rs` calls `skillsmith_cli::run()`).
+- During the overlap, the `skillsmith` target has `required-features = ["long-name"]`, so a plain
+  `cargo install` provides only `sks` and cannot replace v1's `skillsmith` command.
+- At the cutover the gate is removed. Homebrew then installs `sks` as a symlink to `skillsmith`;
+  release tarballs ship the symlink (a copy on Windows).
+- The CLI passes the invoked name (`argv[0]`) to clap's `bin_name`, so help text shows the name
+  the user typed.
+- Not yet checked: whether `sks` is free on crates.io, npm, and Homebrew.
+
 ### Migration approach
 
 Spec-first: capture v1 behaviour as golden fixtures, then build a Cargo workspace that passes
-them. Proposed crates: `skillsmith-model` (D1/D3 types), `skillsmith-formats` (v1-compatible
+them. Fixtures cover persisted formats and plan/apply semantics, not CLI output (D8). Proposed crates: `skillsmith-model` (D1/D3 types), `skillsmith-formats` (v1-compatible
 codecs), `skillsmith-adapter` (trait, manifest loader, JSON-RPC client), `skillsmith-agents`
 (one module per built-in agent), `skillsmith-plan` (coverage and ownership), `skillsmith-cli`.
 
 ## Open issues
 
-- **Binary name collision.** With shared state (D5), v1 and v2 cannot both install a command
-  named `skillsmith`. The crates.io name `skillsmith` is reserved (0.0.0, owner smorin).
+- **Initial command subset.** Which v2 commands are built first is not yet decided.
 - **Unverified facts** (not relied on): Codex `~/.codex/skills/.system`; the OpenCode and Kilo
   Code env vars that disable external skill roots (Kilo's may be
   `OPENCODE_DISABLE_EXTERNAL_SKILLS`); the list of other agents reading `~/.agents/skills`.
@@ -150,6 +186,9 @@ codecs), `skillsmith-adapter` (trait, manifest loader, JSON-RPC client), `skills
 | Q3 | Approve D1–D4 and D6 as direction? | Q3.A — approved | 2026-09-24 |
 | Q4 | Where does the v2 design live? | Q4.A — this repo; v1 P21 points here | 2026-09-24 |
 | Q5 | Repo visibility and license? | Q5.A — public, Apache-2.0 | 2026-09-24 |
+| Q6 | Apply the review findings (Tier 2 trust, write coordination, fixes)? | Q6.A — applied | 2026-09-25 |
+| Q7 | Command names? | Q7.A — `sks` during the overlap, both names at cutover (D9) | 2026-09-25 |
+| — | Output compatibility (user instruction) | v2 output is new and not compatible with v1 (D8) | 2026-09-25 |
 
 Earlier alignment answers (2026-09-23): capability abstraction via traits plus declarative
 data (explore further); third parties must be able to add agents; migration approach (iii),
