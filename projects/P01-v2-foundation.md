@@ -3,7 +3,7 @@
 **References**
 - **Trunk:** [PROJECTS.md](../PROJECTS.md)
 - **Design:** [ADR 0001 — v2 architecture](../docs/adr/0001-v2-architecture.md)
-- **Tracking:** [skillsmith v1 P21 pointer, PR #113](https://github.com/smorinlabs/skillsmith/pull/113) — update to the `main` file path once merged
+- **Tracking:** [skillsmith v1 P21 pointer](https://github.com/smorinlabs/skillsmith/blob/main/projects/P21-skillsmith-v2-rust-architecture.md)
 - **Prior art:** [v1 ADR 0007 — tool adapter registry](https://github.com/smorinlabs/skillsmith/blob/main/docs/adr/0007-tool-adapter-registry.md)
 - **Prior art:** [v1 ADR 0008 — wire contract registry](https://github.com/smorinlabs/skillsmith/blob/main/docs/adr/0008-wire-contract-registry.md)
 - **Discussion:** [v1 issue #99 — shared project destination](https://github.com/smorinlabs/skillsmith/issues/99)
