@@ -283,6 +283,7 @@ codecs), `skillsmith-adapter` (trait, manifest loader, JSON-RPC client), `skills
 | Q11 | Where does a data-only agent's load-check reader come from? | Superseded: capabilities live in the adapter (D11) | 2026-09-25 |
 | Q14 | Sandbox-only process access? | Superseded by Q15, then by Q16 | 2026-09-25 |
 | Q15 | Sandbox default with declared permissions? | Superseded by Q16 (research changed the role of permissions) | 2026-09-26 |
+| Q17 | Startup announcement text? | Q17.A — revised text with `sks` and the research index | 2026-09-26 |
 | Q16 | Adopt the researched pattern sets? | Q16.A — adopted into D2, D5, D12 | 2026-09-26 |
 | Q13 | Agent-specific lint rules? | Q13.A — shared spec rules plus optional adapter rules (D11) | 2026-09-25 |
 | Q10 | What does `lint` do? | Q10.A — three levels `lint`/`validate`/`load`, no short-circuit (D11) | 2026-09-25 |
