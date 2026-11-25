@@ -133,7 +133,7 @@ resolution (likely data), deep verification and Muse enablement probing (likely 
 
 A `Location` is a scoped pattern: fixed path, env-overridable path, additive path,
 walk-up-to-repo-root, or manifest-declared path (such as Antigravity's `skills.json` /
-`plugins.json` with `entries` and `inherits`). An agent relates to a location through a `Binding`
+`plugins.json` with `entries`, `inherits`, and top-level `exclude`). An agent relates to a location through a `Binding`
 carrying `role` (canonical write, read, compat read), `precedence`, `collision_policy`, and
 `gates`.
 
@@ -317,18 +317,25 @@ non-Claude plugin discovery that v1 cannot express.
 |---|---|---|---|
 | Project | `<walk-up>/.agents/skills/<name>/SKILL.md` | `canonical write` | Walks up from CWD to git repo root; co-owned under D4 alongside Codex and Muse (compat-read by OpenCode and Kilo Code) |
 | Project | `<walk-up>/.agent/skills/`, `_agents/skills/`, `_agent/skills/` | `compat read` | Documented workspace dot/underscore directory aliases |
-| Project | `<walk-up>/.agents/skills.json`, `.agents/plugins.json` | `read` | Manifest-declared path discovery (`entries` scanned one level deep, plus `inherits` with `include_only` / `exclude`) |
+| Project | `<walk-up>/.agents/skills.json`, `.agents/plugins.json` | `read` | Manifest-declared path discovery (`entries` scan a folder one level deep or load a single customization by folder or file path; `inherits` with `include_only` / `exclude`; top-level `exclude` hides matching items across locations, with the documented CLI exception below) |
 | Project | `<project>/.agents/plugins/<name>/` | `read` | Workspace plugin bundles (`plugin.json` or `.antigravity-plugin/plugin.json`, with bundled `skills/<skill>/SKILL.md`) |
+| User | `~/.gemini/antigravity-cli/skills/<name>/SKILL.md` | `read` | CLI-only global root (not read by the Antigravity App); documented as highest precedence in the CLI and exempt from manifest `exclude` (see Open issues drift-watch) |
+| User | `~/.gemini/skills/<name>/SKILL.md` | `read` | CLI-only shared global root (not read by the Antigravity App); documented as highest precedence in the CLI and exempt from manifest `exclude` (see Open issues drift-watch) |
 | User | `~/.gemini/config/skills/<name>/SKILL.md` | `canonical write` | Distinct native global root (separate from `~/.agents/skills` and `~/.claude/skills`) |
 | User | `~/.agents/skills/<name>/SKILL.md` | `compat read` | Natively discovered by `agy 1.5.16` without `skills.json`; shadowed by `~/.gemini/config/skills` |
-| User | `~/.gemini/config/skills.json`, `plugins.json` | `read` | Global manifest-declared path discovery |
+| User | `~/.gemini/config/skills.json`, `plugins.json` | `read` | Global manifest-declared path discovery (same `entries` folder-or-single-item, `inherits`, and top-level `exclude` rules as workspace manifests; relative `entries` start at `~/.gemini/config/`) |
 | User | `~/.gemini/config/plugins/<name>/` | `read` | Global plugin bundles staged by `agy plugin install` and surfaced by `agy plugin list --json` |
 
-**Precedence and deduplication:** Documented priority order (highest to lowest) is (1) workspace
-walk-up, (2) workspace JSON configs (`skills.json` / `plugins.json`), (3) global discovery
-(`~/.gemini/config/`, shadowing `~/.agents/skills`), (4) built-in customizations (mounted by agent
-config, not discovered on disk), and (5) global JSON configs. Conflicts use strict precedence
-(higher overrides lower), and customizations are deduplicated by resolved file path.
+**Precedence and deduplication:** Current Antigravity documentation ranks skills (highest to lowest)
+as: (1) in the CLI only, `~/.gemini/antigravity-cli/skills/` and `~/.gemini/skills/` (also
+documented as exempt from manifest `exclude`); (2) repository-configured personal folder
+(`.gemini/config.json` `personal_customization_dir`), if present; (3) workspace walk-up and
+workspace manifests (`.agents/skills.json` / `plugins.json`); (4) personal `~/.gemini/config/`,
+including personal manifests (`~/.gemini/config/skills.json` / `plugins.json`) and shadowing
+`~/.agents/skills/`; and (5) built-in customizations (mounted by agent config, not discovered on
+disk). Live `agy 1.5.16` `acp` probes confirm personal manifests outrank built-ins, while showing
+different behavior for the two CLI-only roots (recorded under Open issues). Conflicts use strict
+precedence (higher overrides lower), and customizations are deduplicated by resolved file path.
 
 **CLI binary and capabilities (D1, D2, D11):**
 - **Detection:** `agy --version` (native binary, commonly installed at `~/.local/bin/agy`).
@@ -368,8 +375,15 @@ codecs), `skillsmith-adapter` (trait, manifest loader, JSON-RPC client), `skills
   under D7 as `agy` releases evolve): (1) when both `<repo>/.agents/skills/<name>` and
   `<repo>/sub/.agents/skills/<name>` existed, repo root won over the nested subdirectory in walk-up;
   (2) `~/` entries in global `~/.gemini/config/skills.json` did not resolve in an isolated `HOME`
-  probe while absolute paths did; (3) `agy acp` offline `gemini-api-key` authentication accepts a
-  dummy key without contacting a network endpoint, which could tighten in a future `agy` release.
+  probe while absolute paths did (matching the live customization-discovery docs, which state `~` is
+  not expanded); (3) `agy acp` offline `gemini-api-key` authentication accepts a dummy key without
+  contacting a network endpoint, which could tighten in a future `agy` release; (4) in `agy 1.5.16`
+  `acp`, `~/.gemini/antigravity-cli/skills/` and `~/.gemini/skills/` did not outrank workspace
+  skills and were hidden by top-level manifest `exclude` — observed order was workspace
+  `.agents/skills/` > workspace `skills.json` > global `skills.json` >
+  `~/.gemini/antigravity-cli/skills/` > `~/.gemini/config/skills/` > `~/.gemini/skills/` >
+  `~/.agents/skills/` > built-in (confirming personal manifests outrank built-ins, matching the live
+  docs rather than the older bundled `agy-customizations` skill).
 
 ## Decision log
 
