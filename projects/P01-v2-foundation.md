@@ -14,6 +14,8 @@ authorized until the ADR is accepted and T02–T05 are reviewed.
 **Goal/Requirement**: Establish the v2 architecture and a Cargo workspace that is proven
 compatible with v1's persisted formats before any command is ported.
 - Capability model (ADR D1), adapter tiers (D2), locations and bindings (D3), co-ownership (D4).
+- Built-in target agents: the five v1 agents (`claude-code`, `codex`, `kilo-code`, `opencode`,
+  `muse`) plus **Antigravity (`antigravity` / `agy`)** as a first-class built-in target.
 - Byte-compatible v1 state (D5); cheap agent onboarding (D6); monitoring scope (D7).
 - New, non-v1-compatible command output (D8); `sks` / `skillsmith` naming (D9).
 
@@ -23,22 +25,24 @@ compatible with v1's persisted formats before any command is ported.
 
 ## Tests & Tasks
 - [~] [P01-T01] Record ADR 0001 with the decision log.
-- [ ] [P01-T02] Analyse the D2 data/code boundary per v1 per-agent behaviour; propose the `agent.toml` schema. Prerequisite for `verify --check load`, the next milestone (D10).
+- [ ] [P01-T02] Analyse the D2 data/code boundary per v1 per-agent behaviour plus Antigravity (`agy` — manifest-declared `skills.json`/`plugins.json`, walk-up aliases, `agy plugin validate --json`, `agy plugin list --json`); propose the `agent.toml` schema. Prerequisite for `verify --check load`, the next milestone (D10).
 - [ ] [P01-T03] Specify the Tier 2 JSON-RPC adapter protocol (`initialize`, capability exchange, versioning).
 - [x] [P01-T04] Decide the v1/v2 binary name collision — ADR D9 (Q7.A, 2026-09-25).
 - [ ] [P01-T05] Capture v1 golden fixtures for manifest@1, lock@1, plan@1, ledger@2, journal@1.
 - [x] [P01-T07] Decide the initial v2 command subset — ADR D10 (Q8.A, 2026-09-25): read-only `agents`, `list`, `verify --check lint`.
 - [x] [P01-T09] Name the verification levels — ADR D11 (Q9.A, 2026-09-25): `--check lint` / `--check load`; extended by Q10.A to `lint` / `validate` / `load`, all selected checks always run.
-- [ ] [P01-T10] Extend `ExecPlan` for stdin exchanges and multi-step runs (Codex JSON-RPC, Muse two runs), or keep those checks in Tier 0/Tier 2 code (ADR D2 open item).
+- [ ] [P01-T10] Extend `ExecPlan` for stdin exchanges and multi-step runs (Codex JSON-RPC, Antigravity `agy acp` JSON-RPC, Muse two runs), or keep those checks in Tier 0/Tier 2 code (ADR D2 open item).
 - [x] [P01-T11] Research architecture patterns — `research/topics/v2-architecture-patterns/DECISION.md`; adopted as ADR D2, D5, D12 (Q16.A, 2026-09-26).
 - [ ] [P01-T12] Research OS-level filesystem confinement for agent programs (Linux Landlock; macOS options) as a later sandbox layer (ADR D2, Q20.A).
 - [ ] [P01-T08] Define v2 output schemas with v2-only identifiers (D8).
 - [ ] [P01-T06] Scaffold the Cargo workspace (model, formats, adapter, agents, plan, cli).
 - [ ] [P01-T13] Watch v1 (smorinlabs/skillsmith) for changes to persisted formats (manifest@1, lock@1, plan@1, ledger@1/2, journal@1) or to its three `proper-lockfile` lock families, and record each as a v2 compatibility break here. This task supersedes v1 P21-T02 and is the only maintained copy: P21-T02 stays open in the v1 repo unchanged, because Q23.A (2026-09-26) keeps all v2 work in this repo and makes no further v1 edits.
+- [ ] [P01-T14] Specify and wire the built-in Antigravity (`antigravity` / `agy`) adapter: walk-up `.agents/skills` co-ownership with Codex/Muse (plus `.agent/`, `_agents/`, `_agent/` compat aliases), distinct global root `~/.gemini/config/skills` shadowing `~/.agents/skills`, CLI-only global roots (`~/.gemini/antigravity-cli/skills`, `~/.gemini/skills`), `skills.json`/`plugins.json` manifest discovery (folder scans, single-customization folder/file `entries`, `inherits`, and top-level `exclude`), plugin roots (`~/.gemini/config/plugins`, `.agents/plugins`), `agy` binary detection, `agy plugin list --json`, `agy plugin validate --json` (`verify.validate`), and `verify.load` probe per P01-T10.
 - [ ] [P01-TS01] `skillsmith-formats` round-trips every v1 golden fixture byte-for-byte.
 - [ ] [P01-TS03] Concurrency test: v1 and v2 on one data dir exclude each other via `placements.json.lock` (D5).
 - [ ] [P01-TS04] Paused-holder test: a holder whose lock is reclaimed while paused aborts before renaming (ADR D5, Q21.A).
 - [ ] [P01-TS02] Conformance suite runs against every registered adapter, including one Tier 1 test manifest.
+- [ ] [P01-TS05] Antigravity adapter fixtures: `.agents/skills` co-ownership planning with Codex/Muse, distinct `~/.gemini/config/skills` vs `~/.agents/skills` and CLI-only roots (`~/.gemini/antigravity-cli/skills`, `~/.gemini/skills`) precedence, `skills.json` manifest discovery (one-level folder scan, direct single-skill folder/file `entries`, and top-level `exclude`), and `agy plugin validate --json` parsing.
 - [ ] Regression Test Status
 
 ## Deliverable

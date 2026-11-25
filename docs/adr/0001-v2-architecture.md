@@ -9,19 +9,21 @@
 
 Skillsmith v1 (TypeScript, [smorinlabs/skillsmith](https://github.com/smorinlabs/skillsmith))
 installs, verifies, and syncs agent skills (`SKILL.md` folders) across Claude Code, Codex, Kilo
-Code, OpenCode, and Muse. v2 is a Rust rewrite that runs alongside v1. Two problems motivate a
-second-generation architecture rather than a port:
+Code, OpenCode, and Muse. v2 is a Rust rewrite that runs alongside v1 and adds **Antigravity
+(`agy`)** as a sixth first-class built-in target agent. Two problems motivate a second-generation
+architecture rather than a port:
 
 1. **Commands vs. agents.** A command such as `verify` should automatically serve every agent
    that has the capability it needs, and report why others are excluded. v1 records support as
    `supported: boolean` plus remediation text (`packages/core/src/agents/adapter-types.ts:32`),
    which cannot distinguish "Skillsmith has not built this" from "the agent cannot do this".
 2. **Shared install locations.** Several agents read, and sometimes write, the same directory.
-   v1 models roots per agent only. At project scope Codex and Muse both write
+   v1 models roots per agent only. At project scope Codex, Muse, and Antigravity all write
    `<project>/.agents/skills`; v1 deferred Muse project installs rather than arbitrate
    ownership (v1 issue #99, `packages/core/src/agents/muse/placement.ts:16`).
 
-Evidence gathered on 2026-09-23 from v1 code, ADRs, and git history:
+Evidence gathered on 2026-09-23 from v1 code, ADRs, and git history (and extended on 2026-11-24
+from Antigravity docs and live `agy 1.5.16` probes):
 
 - v1's registry (ADR 0007) removed runtime agent-name branching, enforced by static gates.
 - Onboarding cost remains high: adding Muse took two PRs touching 100+ files, of which about 15
@@ -29,10 +31,13 @@ Evidence gathered on 2026-09-23 from v1 code, ADRs, and git history:
   (`artifacts/plan-types.ts:7`, `artifacts/ledger-types.ts:4`, `contracts/v1/index.d.ts`,
   `contracts/v2/index.d.ts`, `undo/types.ts:23`), CI tool setup, and per-agent golden fixtures.
 - v1 persisted codecs reject unknown fields recursively (ADR 0008).
-- Agents' documented discovery rules are richer than v1 models: Codex and OpenCode walk from the
-  working directory up to the repo root; `OPENCODE_CONFIG_DIR` is additive, not a replacement;
-  Muse reads legacy roots behind a rollout gate; duplicate-name handling differs per agent
-  (Claude Code: strict precedence; Codex: duplicates coexist; OpenCode: names must be unique;
+- Agents' documented discovery rules are richer than v1 models: Codex, OpenCode, and Antigravity
+  walk from the working directory up to the repo root; Antigravity also recognizes workspace
+  aliases (`.agent/`, `_agents/`, `_agent/`), explicit JSON manifests (`skills.json`,
+  `plugins.json`), and a distinct global root (`~/.gemini/config/skills`, shadowing
+  `~/.agents/skills`); `OPENCODE_CONFIG_DIR` is additive, not a replacement; Muse reads legacy
+  roots behind a rollout gate; duplicate-name handling differs per agent (Claude Code and
+  Antigravity: strict precedence; Codex: duplicates coexist; OpenCode: names must be unique;
   Kilo Code: project shadows user).
 
 ## Decisions
@@ -105,7 +110,8 @@ reason).
   reserved). Custom capabilities use the same syntax (`com.example/verify.secrets`) and are
   invoked only by explicit commands. Core ids stay bare.
 - **Open:** `ExecPlan` as sketched covers one command run. v1's Codex load check is a JSON-RPC
-  exchange over stdin and Muse's runs two commands (P01-T10).
+  exchange over stdin, Antigravity's candidate `verify.load` probe (`agy acp`) is also a
+  multi-message JSON-RPC exchange over stdin, and Muse's runs two commands (P01-T10).
 
 **Tier 2 trust rule.** Finding `skillsmith-agent-<name>` on `PATH` is not enough to run it; the
 `initialize` handshake checks protocol compatibility, not provenance. A Tier 2 adapter runs only
@@ -125,17 +131,19 @@ resolution (likely data), deep verification and Muse enablement probing (likely 
 
 ### D3 — Locations are first-class; agents bind to them
 
-A `Location` is a scoped pattern: fixed path, env-overridable path, additive path, or
-walk-up-to-repo-root. An agent relates to a location through a `Binding` carrying `role`
-(canonical write, read, compat read), `precedence`, `collision_policy`, and `gates`.
+A `Location` is a scoped pattern: fixed path, env-overridable path, additive path,
+walk-up-to-repo-root, or manifest-declared path (such as Antigravity's `skills.json` /
+`plugins.json` with `entries`, `inherits`, and top-level `exclude`). An agent relates to a location through a `Binding`
+carrying `role` (canonical write, read, compat read), `precedence`, `collision_policy`, and
+`gates`.
 
 Install planning selects the minimal set of write locations covering the requested agents and
 reports incidental visibility, for example:
 
 ```
-install foo --agents codex,muse        (project scope)
-  write  .agents/skills/foo            codex: canonical write; muse: canonical write
-  also visible to: opencode, kilo-code (compat read)
+install foo --agents codex,muse,antigravity   (project scope)
+  write  .agents/skills/foo                   codex, muse, antigravity: canonical write
+  also visible to: opencode, kilo-code        (compat read)
 ```
 
 ### D4 — Shared write locations are co-owned
@@ -276,7 +284,7 @@ includes the levels before it:
 | Level | What runs | Capability |
 |---|---|---|
 | `lint` (default) | Skillsmith's own checks of `SKILL.md` against the skills spec; no agent runs | `verify.lint` |
-| `validate` | `lint`, plus each agent's own validator (v1's static check, e.g. `claude plugin validate`, `muse skills validate`) | `verify.validate` |
+| `validate` | `lint`, plus each agent's own validator (v1's static check, e.g. `claude plugin validate`, `muse skills validate`, `agy plugin validate`) | `verify.validate` |
 | `load` | `validate`, plus each agent's binary loading the skill from an isolated throwaway copy; no model call (v1's deep check) | `verify.load` |
 
 **No short-circuit (user instruction, 2026-09-25).** Every check in the selected levels runs
@@ -295,6 +303,60 @@ produced them. The core/adapter interface boundary is still being designed.
 A later level that exercises the skill through a model (for example `invoke`) can be added as a
 new value without a new flag.
 
+### Built-in target: Antigravity (`agy`)
+
+Antigravity (`id: "antigravity"`, CLI binary `agy`) is a first-class built-in target agent in v2
+alongside the five v1 agents (`claude-code`, `codex`, `kilo-code`, `opencode`, `muse`). It is
+deferred from v1 rather than retrofitted there because it collides with Codex on
+`<project>/.agents/skills` (v1 issue #99) and relies on walk-up, manifest-declared paths, and
+non-Claude plugin discovery that v1 cannot express.
+
+**Locations and bindings (D3, D4):**
+
+| Scope | Location pattern | Role | Notes |
+|---|---|---|---|
+| Project | `<walk-up>/.agents/skills/<name>/SKILL.md` | `canonical write` | Walks up from CWD to git repo root; co-owned under D4 alongside Codex and Muse (compat-read by OpenCode and Kilo Code) |
+| Project | `<walk-up>/.agent/skills/`, `_agents/skills/`, `_agent/skills/` | `compat read` | Documented workspace dot/underscore directory aliases |
+| Project | `<walk-up>/.agents/skills.json`, `.agents/plugins.json` | `read` | Manifest-declared path discovery (`entries` scan a folder one level deep or load a single customization by folder or file path; `inherits` with `include_only` / `exclude`; top-level `exclude` hides matching items across locations, with the documented CLI exception below) |
+| Project | `<project>/.agents/plugins/<name>/` | `read` | Workspace plugin bundles (`plugin.json` or `.antigravity-plugin/plugin.json`, with bundled `skills/<skill>/SKILL.md`) |
+| User | `~/.gemini/antigravity-cli/skills/<name>/SKILL.md` | `read` | CLI-only global root (not read by the Antigravity App); documented as highest precedence in the CLI and exempt from manifest `exclude` (see Open issues drift-watch) |
+| User | `~/.gemini/skills/<name>/SKILL.md` | `read` | CLI-only shared global root (not read by the Antigravity App); documented as highest precedence in the CLI and exempt from manifest `exclude` (see Open issues drift-watch) |
+| User | `~/.gemini/config/skills/<name>/SKILL.md` | `canonical write` | Distinct native global root (separate from `~/.agents/skills` and `~/.claude/skills`) |
+| User | `~/.agents/skills/<name>/SKILL.md` | `compat read` | Natively discovered by `agy 1.5.16` without `skills.json`; shadowed by `~/.gemini/config/skills` |
+| User | `~/.gemini/config/skills.json`, `plugins.json` | `read` | Global manifest-declared path discovery (same `entries` folder-or-single-item, `inherits`, and top-level `exclude` rules as workspace manifests; relative `entries` start at `~/.gemini/config/`) |
+| User | `~/.gemini/config/plugins/<name>/` | `read` | Global plugin bundles staged by `agy plugin install` and surfaced by `agy plugin list --json` |
+
+**Precedence and deduplication:** Current Antigravity documentation ranks skills (highest to lowest)
+as: (1) in the CLI only, `~/.gemini/antigravity-cli/skills/` and `~/.gemini/skills/` (also
+documented as exempt from manifest `exclude`); (2) repository-configured personal folder
+(`.gemini/config.json` `personal_customization_dir`), if present; (3) workspace walk-up and
+workspace manifests (`.agents/skills.json` / `plugins.json`); (4) personal `~/.gemini/config/`,
+including personal manifests (`~/.gemini/config/skills.json` / `plugins.json`) and shadowing
+`~/.agents/skills/`; and (5) built-in customizations (mounted by agent config, not discovered on
+disk). Live `agy 1.5.16` `acp` probes confirm personal manifests outrank built-ins, while showing
+different behavior for the two CLI-only roots (recorded under Open issues). Conflicts use strict
+precedence (higher overrides lower), and customizations are deduplicated by resolved file path.
+
+**CLI binary and capabilities (D1, D2, D11):**
+- **Detection:** `agy --version` (native binary, commonly installed at `~/.local/bin/agy`).
+- **Plugin inventory:** `agy plugin list --json` runs offline and auth-free and returns installed
+  global plugins under `~/.gemini/config/plugins/` with enabled state, version, path, and loaded
+  `skills` names (it does not list workspace `.agents/plugins/` or standalone skills).
+- **`verify.validate`:** `agy plugin validate [--strict] --json <dir>` runs offline and auth-free,
+  validates `plugin.json` or `.antigravity-plugin/plugin.json` plus bundled `skills/*/SKILL.md`
+  frontmatter, and emits structured JSON findings (`error` / `warning` / `note`). Bare skills are
+  validated via an ephemeral wrapper carrying `.antigravity-plugin/plugin.json`; non-Antigravity
+  plugin repositories without an Antigravity manifest must be skipped cleanly rather than treated
+  as broken.
+- **`verify.load`:** `agy -p` blocks for interactive OAuth when `HOME` is isolated and emits no
+  skill list in its `init` event, so it is unsuitable for auth-free load checks. Instead,
+  `agy acp --disable-telemetry` (stdio JSON-RPC: `initialize` → `authenticate` with
+  `methodId: "gemini-api-key"` and a dummy `GEMINI_API_KEY` → `session/new`) runs offline without
+  model calls and emits `session/update` (`available_commands_update`) listing loaded skills across
+  all workspace, global, plugin, and `skills.json` roots while dropping invalid-YAML skills. Because
+  this is a multi-message stdin/stdout JSON-RPC exchange, it shares the P01-T10 `ExecPlan` / Tier 0
+  design space with Codex's app-server check.
+
 ### Migration approach
 
 Spec-first: capture v1 behaviour as golden fixtures, then build a Cargo workspace that passes
@@ -309,6 +371,19 @@ codecs), `skillsmith-adapter` (trait, manifest loader, JSON-RPC client), `skills
   `OPENCODE_DISABLE_EXTERNAL_SKILLS`); the list of other agents reading `~/.agents/skills`.
 - **v1 location gaps** found during research (walk-up, additive `OPENCODE_CONFIG_DIR`, Muse
   legacy roots) are v1 issues; v2 models them from the start.
+- **Antigravity (`agy 1.5.16`) drift-watch facts** (empirically observed on 2026-11-24; re-verify
+  under D7 as `agy` releases evolve): (1) when both `<repo>/.agents/skills/<name>` and
+  `<repo>/sub/.agents/skills/<name>` existed, repo root won over the nested subdirectory in walk-up;
+  (2) `~/` entries in global `~/.gemini/config/skills.json` did not resolve in an isolated `HOME`
+  probe while absolute paths did (matching the live customization-discovery docs, which state `~` is
+  not expanded); (3) `agy acp` offline `gemini-api-key` authentication accepts a dummy key without
+  contacting a network endpoint, which could tighten in a future `agy` release; (4) in `agy 1.5.16`
+  `acp`, `~/.gemini/antigravity-cli/skills/` and `~/.gemini/skills/` did not outrank workspace
+  skills and were hidden by top-level manifest `exclude` — observed order was workspace
+  `.agents/skills/` > workspace `skills.json` > global `skills.json` >
+  `~/.gemini/antigravity-cli/skills/` > `~/.gemini/config/skills/` > `~/.gemini/skills/` >
+  `~/.agents/skills/` > built-in (confirming personal manifests outrank built-ins, matching the live
+  docs rather than the older bundled `agy-customizations` skill).
 
 ## Decision log
 
